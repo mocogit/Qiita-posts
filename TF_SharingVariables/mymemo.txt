@@ -1,0 +1,17 @@
+#   mymemo.txt
+
+TensorFlow の変数スコープ，共有変数について確認する．
+
+(Reference)
+- TensorFlow ドキュメント (in how-tos) 
+https://www.tensorflow.org/versions/r0.11/how_tos/variable_scope/index.html
+
+- Fundamentals of Deep Learning, chapter 3, Navigating Variable Scopes and Sharing Variables
+http://shop.oreilly.com/product/0636920039709.do
+
+- (to compare) Theano - Understanding Memory Aliasing for Speed and Correctness
+http://deeplearning.net/software/theano/tutorial/aliasing.html#borrowing-when-creating-shared-variables
+
+- Understanding Variable scope example in Tensorflow - stack overflow
+http://stackoverflow.com/questions/33725159/understanding-variable-scope-example-in-tensorflow
+
