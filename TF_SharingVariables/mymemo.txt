@@ -15,3 +15,7 @@ http://deeplearning.net/software/theano/tutorial/aliasing.html#borrowing-when-cr
 - Understanding Variable scope example in Tensorflow - stack overflow
 http://stackoverflow.com/questions/33725159/understanding-variable-scope-example-in-tensorflow
 
+
+
+(rem.) variable_scope と name_scope の違いについても理解しておきたい．
+
