@@ -1,6 +1,6 @@
 #
 #   mnist_2nets.py
-#       date. 11/28/2016
+#       date. 11/28/2016, 11/30
 #
 
 import numpy as np
@@ -8,7 +8,6 @@ import tensorflow as tf
 
 # Import data
 from input_data import DataSet, extract_images, extract_labels
-
 
 # Full-connected Layer   
 class FullConnected(object):
@@ -28,6 +27,7 @@ class FullConnected(object):
         self.output = tf.nn.relu(linarg)
         
         return self.output
+#
 
 # Read-out Layer
 class ReadOutLayer(object):
@@ -112,8 +112,7 @@ def test_averaging(predicts, actual):
         args.:
         predicts    : predictions lists by networks
         actual      : label data of test
-    '''
-    
+    '''    
     y_pred_ave = (predicts[0] + predicts[1]) / 2.
 
     correct_prediction = tf.equal(tf.argmax(y_pred_ave,1), tf.argmax(actual,1))
@@ -141,33 +140,36 @@ if __name__ == '__main__':
     with tf.Session() as sess:
         sess.run(init)
         print('Training...')
-        print('  Network No.1 :')
-        for i in range(5001):
-            batch_xs, batch_ys = mnist.train1.next_batch(100)
-            train_step1.run({x: batch_xs, y_: batch_ys})
-            if i % 1000 == 0:
-                accuracy1_i = accuracy1.eval({x: batch_xs, y_: batch_ys})
-                loss1_i = loss1.eval({x: batch_xs, y_: batch_ys})
-                print('  step, loss, accurary = {:>6d}: {:>8.3f}, {:>8.3f}'.format(
-                        i, loss1_i, accuracy1_i))
-        
-        print('  Network No.2 :')
-        for i in range(5001):
-            batch_xs, batch_ys = mnist.train2.next_batch(100)
-            train_step2.run({x: batch_xs, y_: batch_ys})
-            if i % 1000 == 0:
-                accuracy2_i = accuracy2.eval({x: batch_xs, y_: batch_ys})
-                loss2_i = loss2.eval({x: batch_xs, y_: batch_ys})
-                print('  step, loss, accurary = {:>6d}: {:>8.3f}, {:>8.3f}'.format(
-                        i, loss2_i, accuracy2_i))
+
+        with tf.device('/gpu:0'):
+            print('  Network No.1 :')
+            for i in range(5001):
+                batch_xs, batch_ys = mnist.train1.next_batch(100)
+                train_step1.run({x: batch_xs, y_: batch_ys})
+                if i % 1000 == 0:
+                    accuracy1_i = accuracy1.eval({x: batch_xs, y_: batch_ys})
+                    loss1_i = loss1.eval({x: batch_xs, y_: batch_ys})
+                    print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
+                        .format(i, loss1_i, accuracy1_i))
+            
+        with tf.device('/cpu:0'):
+            print('  Network No.2 :')
+            for i in range(5001):
+                batch_xs, batch_ys = mnist.train2.next_batch(100)
+                train_step2.run({x: batch_xs, y_: batch_ys})
+                if i % 1000 == 0:
+                    accuracy2_i = accuracy2.eval({x: batch_xs, y_: batch_ys})
+                    loss2_i = loss2.eval({x: batch_xs, y_: batch_ys})
+                    print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
+                        .format(i, loss2_i, accuracy2_i))
 
         # Test trained model
         accu_ave = test_averaging([y_pred1, y_pred2], y_)
 
-        print('accuracy1 = ', accuracy1.eval(
-            {x: mnist.test.images, y_: mnist.test.labels}))
-        print('accuracy2 = ', accuracy2.eval(
-            {x: mnist.test.images, y_: mnist.test.labels}))
-        print('accuracy (model averaging) = ', accu_ave.eval(
-            {x: mnist.test.images, y_: mnist.test.labels}))
+        print('accuracy1 = {:>8.4f}'.format(accuracy1.eval(
+            {x: mnist.test.images, y_: mnist.test.labels})))
+        print('accuracy2 = {:>8.4f}'.format(accuracy2.eval(
+            {x: mnist.test.images, y_: mnist.test.labels})))
+        print('accuracy (model averaged) = {:>8.4f}'.format(accu_ave.eval(
+            {x: mnist.test.images, y_: mnist.test.labels})))
 
