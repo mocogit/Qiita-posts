@@ -3,6 +3,10 @@
 TensorFlow の変数スコープ，共有変数について確認する．
 
 (Reference)
+
+
+## 参考文献 / Web site
+
 - TensorFlow ドキュメント (in how-tos) 
 https://www.tensorflow.org/versions/r0.11/how_tos/variable_scope/index.html
 
@@ -15,7 +19,13 @@ http://deeplearning.net/software/theano/tutorial/aliasing.html#borrowing-when-cr
 - Understanding Variable scope example in Tensorflow - stack overflow
 http://stackoverflow.com/questions/33725159/understanding-variable-scope-example-in-tensorflow
 
+- Distributed TensorFlow でデータ並列を試してみる - Qiita
+http://qiita.com/ashitani/items/dbe76cb9194d60ead9de
 
 
-(rem.) variable_scope と name_scope の違いについても理解しておきたい．
+
+(rem.) 
+- 変数スコープ機能の比較： C++ vs. Python
+- variable_scope と name_scope の違いについても理解しておきたい．
+- TensorBoard (SummaryWriter) での扱い
 
