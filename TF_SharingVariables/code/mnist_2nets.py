@@ -1,6 +1,6 @@
 #
 #   mnist_2nets.py
-#       date. 11/28/2016, 12/1
+#       date. 11/28/2016, 12/5
 #
 
 import numpy as np
@@ -80,29 +80,36 @@ def read_and_split(dirn='../data', one_hot=True):
 
 
 # Create the model
-def mk_NN_model(scope='mlp'):
-    with tf.variable_scope(scope):
-        hidden1 = FullConnected(x, 784, 625, vn=('W_hid_1','b_hid_1'))
-        h1out = hidden1.output()
-    
-        hidden2 = FullConnected(h1out, 625, 625, vn=('W_hid_2','b_hid_2'))
-        h2out = hidden2.output()
-    
-        readoutlay = ReadOutLayer(h2out, 625, 10, vn=('W_RO', 'b_RO'))
-        y_pred = readoutlay.output()
+def mk_NN_model(scope='mlp', tying=False):
+    if tying == True:
+        with tf.variable_scope(scope, reuse=True):
+            hidden1 = FullConnected(x, 784, 625, vn=('W_hid_1','b_hid_1'))
+            h1out = hidden1.output()
+            hidden2 = FullConnected(h1out, 625, 625, vn=('W_hid_2','b_hid_2'))
+            h2out = hidden2.output()    
+            readout = ReadOutLayer(h2out, 625, 10, vn=('W_RO', 'b_RO'))
+            y_pred = readout.output()
+    else:
+        with tf.variable_scope(scope):
+            hidden1 = FullConnected(x, 784, 625, vn=('W_hid_1','b_hid_1'))
+            h1out = hidden1.output()
+            hidden2 = FullConnected(h1out, 625, 625, vn=('W_hid_2','b_hid_2'))
+            h2out = hidden2.output()    
+            readout = ReadOutLayer(h2out, 625, 10, vn=('W_RO', 'b_RO'))
+            y_pred = readout.output()
      
-        cross_entropy = -tf.reduce_sum(y_*tf.log(y_pred))
+    cross_entropy = -tf.reduce_sum(y_*tf.log(y_pred))
     
-        # Regularization terms (weight decay)
-        L2_sqr = tf.nn.l2_loss(hidden1.w) + tf.nn.l2_loss(hidden2.w)
-        lambda_2 = 0.01
+    # Regularization terms (weight decay)
+    L2_sqr = tf.nn.l2_loss(hidden1.w) + tf.nn.l2_loss(hidden2.w)
+    lambda_2 = 0.01
 
-        # the loss and accuracy
-        with tf.name_scope('loss'):
-            loss = cross_entropy + lambda_2 * L2_sqr
-        with tf.name_scope('accuracy'):
-            correct_prediction = tf.equal(tf.argmax(y_pred,1), tf.argmax(y_,1))
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    # the loss and accuracy
+    with tf.name_scope('loss'):
+        loss = cross_entropy + lambda_2 * L2_sqr
+    with tf.name_scope('accuracy'):
+        correct_prediction = tf.equal(tf.argmax(y_pred,1), tf.argmax(y_,1))
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
     
     return y_pred, loss, accuracy
  
@@ -133,7 +140,7 @@ if __name__ == '__main__':
     x = tf.placeholder(tf.float32, [None, 784])
     y_ = tf.placeholder(tf.float32, [None, 10])
     y_pred1, loss1, accuracy1 = mk_NN_model(scope='mlp1')
-    y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp2')
+    y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp2', reuse=True)
 
     # Train
     with tf.name_scope('train1'):
@@ -148,36 +155,34 @@ if __name__ == '__main__':
         sess.run(init)
         print('Training...')
 
-        with tf.device('/gpu:0'):
-            print('  Network No.1 :')
-            for i in range(5001):
-                batch_xs, batch_ys = mnist.train1.next_batch(100)
-                train_step1.run({x: batch_xs, y_: batch_ys})
-                if i % 1000 == 0:
-                    accuracy1_i = accuracy1.eval({x: batch_xs, y_: batch_ys})
-                    loss1_i = loss1.eval({x: batch_xs, y_: batch_ys})
-                    print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
-                        .format(i, loss1_i, accuracy1_i))
-            
-        with tf.device('/cpu:0'):
-            print('  Network No.2 :')
-            for i in range(5001):
-                batch_xs, batch_ys = mnist.train2.next_batch(100)
-                train_step2.run({x: batch_xs, y_: batch_ys})
-                if i % 1000 == 0:
-                    accuracy2_i = accuracy2.eval({x: batch_xs, y_: batch_ys})
-                    loss2_i = loss2.eval({x: batch_xs, y_: batch_ys})
-                    print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
+        print('  Network No.1 :')
+        for i in range(5001):
+            batch_xs, batch_ys = mnist.train1.next_batch(100)
+            train_step1.run({x: batch_xs, y_: batch_ys})
+            if i % 1000 == 0:
+                accuracy1_i = accuracy1.eval({x: batch_xs, y_: batch_ys})
+                loss1_i = loss1.eval({x: batch_xs, y_: batch_ys})
+                print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
+                        .format(i, loss1_i, accuracy1_i))        
+
+        print('  Network No.2 :')
+        for i in range(5001):
+            batch_xs, batch_ys = mnist.train2.next_batch(100)
+            train_step2.run({x: batch_xs, y_: batch_ys})
+            if i % 1000 == 0:
+                accuracy2_i = accuracy2.eval({x: batch_xs, y_: batch_ys})
+                loss2_i = loss2.eval({x: batch_xs, y_: batch_ys})
+                print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
                         .format(i, loss2_i, accuracy2_i))
 
         # Test trained model
-        accu_ave = test_averaging([y_pred1, y_pred2], y_)
-        averaged = sess.run(accu_ave, 
-            feed_dict={x: mnist.test.images, y_: mnist.test.labels})
+        # accu_ave = test_averaging([y_pred1, y_pred2], y_)
+        # averaged = sess.run(accu_ave, 
+        #    feed_dict={x: mnist.test.images, y_: mnist.test.labels})
 
         print('accuracy1 = {:>8.4f}'.format(accuracy1.eval(
             {x: mnist.test.images, y_: mnist.test.labels})))
         print('accuracy2 = {:>8.4f}'.format(accuracy2.eval(
             {x: mnist.test.images, y_: mnist.test.labels})))
-        print('accuracy (model averaged) = {:>8.4f}'.format(averaged))
+        # print('accuracy (model averaged) = {:>8.4f}'.format(averaged))
 
