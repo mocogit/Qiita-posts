@@ -38,15 +38,13 @@ class Encoder(object):
 
 # Decoder Layer
 class Decoder(object):
-    def __init__(self, input, n_in, n_out, vs_enc=None):
+    def __init__(self, input, n_in, n_out, vs_dec='decoder'):
         self.input = input
-        if vs_enc == None:      # independent weight
-            vs_dec = 'decoder'
+        if vs_dec == 'decoder': # independent weight
             with tf.variable_scope(vs_dec):
                 weight_init = tf.truncated_normal_initializer(mean=0.0, stddev=0.05)
                 W = tf.get_variable('W', [n_in, n_out], initializer=weight_init)
         else:                   # weight sharing (tying)
-            vs_dec = vs_enc
             with tf.variable_scope(vs_dec, reuse=True):     # set reuse option
                 W = tf.get_variable('W', [n_out, n_in])
                 W = tf.transpose(W)
