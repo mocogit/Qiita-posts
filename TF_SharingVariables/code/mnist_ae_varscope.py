@@ -70,7 +70,7 @@ y_ = tf.placeholder("float", [None, 10])
 def make_model(x):
     enc_layer = Encoder(x, 784, 625, vs_enc='encoder')
     enc_out = enc_layer.output()
-    dec_layer = Decoder(enc_out, 625, 784, vs_enc='encoder')
+    dec_layer = Decoder(enc_out, 625, 784, vs_dec='encoder')
     dec_out = dec_layer.output()
 
     return enc_out, dec_out
