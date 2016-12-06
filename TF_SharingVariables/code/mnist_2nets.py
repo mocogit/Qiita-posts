@@ -139,8 +139,10 @@ if __name__ == '__main__':
     # Variables
     x = tf.placeholder(tf.float32, [None, 784])
     y_ = tf.placeholder(tf.float32, [None, 10])
+    tf.set_random_seed(2016)
     y_pred1, loss1, accuracy1 = mk_NN_model(scope='mlp1')
-    y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp2', reuse=True)
+    # y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp1', tying=True)
+    y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp2')
 
     # Train
     with tf.name_scope('train1'):
@@ -163,7 +165,9 @@ if __name__ == '__main__':
                 accuracy1_i = accuracy1.eval({x: batch_xs, y_: batch_ys})
                 loss1_i = loss1.eval({x: batch_xs, y_: batch_ys})
                 print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
-                        .format(i, loss1_i, accuracy1_i))        
+                        .format(i, loss1_i, accuracy1_i))
+        accuracy1_test = accuracy1.eval(
+            {x: mnist.test.images, y_: mnist.test.labels})
 
         print('  Network No.2 :')
         for i in range(5001):
@@ -174,15 +178,15 @@ if __name__ == '__main__':
                 loss2_i = loss2.eval({x: batch_xs, y_: batch_ys})
                 print('  step, loss, accurary = {:>6d}:{:>8.3f},{:>8.3f}'\
                         .format(i, loss2_i, accuracy2_i))
+        accuracy2_test = accuracy2.eval(
+            {x: mnist.test.images, y_: mnist.test.labels})
 
         # Test trained model
-        # accu_ave = test_averaging([y_pred1, y_pred2], y_)
-        # averaged = sess.run(accu_ave, 
-        #    feed_dict={x: mnist.test.images, y_: mnist.test.labels})
+        accu_ave = test_averaging([y_pred1, y_pred2], y_)
+        averaged = sess.run(accu_ave, 
+            feed_dict={x: mnist.test.images, y_: mnist.test.labels})
 
-        print('accuracy1 = {:>8.4f}'.format(accuracy1.eval(
-            {x: mnist.test.images, y_: mnist.test.labels})))
-        print('accuracy2 = {:>8.4f}'.format(accuracy2.eval(
-            {x: mnist.test.images, y_: mnist.test.labels})))
-        # print('accuracy (model averaged) = {:>8.4f}'.format(averaged))
+        print('accuracy1 = {:>8.4f}'.format(accuracy1_test))
+        print('accuracy2 = {:>8.4f}'.format(accuracy2_test))
+        print('accuracy (model averaged) = {:>8.4f}'.format(averaged))
 
