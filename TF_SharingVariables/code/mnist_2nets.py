@@ -1,6 +1,6 @@
 #
 #   mnist_2nets.py
-#       date. 11/28/2016, 12/5
+#       date. 11/28/2016, 12/6
 #
 
 import numpy as np
@@ -80,23 +80,19 @@ def read_and_split(dirn='../data', one_hot=True):
 
 
 # Create the model
-def mk_NN_model(scope='mlp', tying=False):
-    if tying == True:
-        with tf.variable_scope(scope, reuse=True):
-            hidden1 = FullConnected(x, 784, 625, vn=('W_hid_1','b_hid_1'))
-            h1out = hidden1.output()
-            hidden2 = FullConnected(h1out, 625, 625, vn=('W_hid_2','b_hid_2'))
-            h2out = hidden2.output()    
-            readout = ReadOutLayer(h2out, 625, 10, vn=('W_RO', 'b_RO'))
-            y_pred = readout.output()
-    else:
-        with tf.variable_scope(scope):
-            hidden1 = FullConnected(x, 784, 625, vn=('W_hid_1','b_hid_1'))
-            h1out = hidden1.output()
-            hidden2 = FullConnected(h1out, 625, 625, vn=('W_hid_2','b_hid_2'))
-            h2out = hidden2.output()    
-            readout = ReadOutLayer(h2out, 625, 10, vn=('W_RO', 'b_RO'))
-            y_pred = readout.output()
+def mk_NN_model(scope='mlp', reuse=False):
+    '''
+      args.:
+        scope   : variable scope ID of networks
+        reuse   : reuse flag of weights/biases
+    '''
+    with tf.variable_scope(scope, reuse=reuse):
+        hidden1 = FullConnected(x, 784, 625, vn=('W_hid_1','b_hid_1'))
+        h1out = hidden1.output()
+        hidden2 = FullConnected(h1out, 625, 625, vn=('W_hid_2','b_hid_2'))
+        h2out = hidden2.output()    
+        readout = ReadOutLayer(h2out, 625, 10, vn=('W_RO', 'b_RO'))
+        y_pred = readout.output()
      
     cross_entropy = -tf.reduce_sum(y_*tf.log(y_pred))
     
@@ -122,11 +118,10 @@ def test_averaging(predicts, actual):
         predicts    : predictions lists by networks
         actual      : label data of test
     '''
-    with tf.name_scope('model_averaging'):
-        y_pred_ave = (predicts[0] + predicts[1]) / 2.
+    y_pred_ave = (predicts[0] + predicts[1]) / 2.
 
-        correct_prediction = tf.equal(tf.argmax(y_pred_ave,1), tf.argmax(actual,1))
-        accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+    correct_prediction = tf.equal(tf.argmax(y_pred_ave,1), tf.argmax(actual,1))
+    accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
     return accuracy
 #
@@ -141,7 +136,7 @@ if __name__ == '__main__':
     y_ = tf.placeholder(tf.float32, [None, 10])
     tf.set_random_seed(2016)
     y_pred1, loss1, accuracy1 = mk_NN_model(scope='mlp1')
-    # y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp1', tying=True)
+    # y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp1', reuse=True)
     y_pred2, loss2, accuracy2 = mk_NN_model(scope='mlp2')
 
     # Train
@@ -182,9 +177,10 @@ if __name__ == '__main__':
             {x: mnist.test.images, y_: mnist.test.labels})
 
         # Test trained model
-        accu_ave = test_averaging([y_pred1, y_pred2], y_)
-        averaged = sess.run(accu_ave, 
-            feed_dict={x: mnist.test.images, y_: mnist.test.labels})
+        with tf.name_scope('model_averaging'):
+            accu_ave = test_averaging([y_pred1, y_pred2], y_)
+            averaged = sess.run(accu_ave, 
+                feed_dict={x: mnist.test.images, y_: mnist.test.labels})
 
         print('accuracy1 = {:>8.4f}'.format(accuracy1_test))
         print('accuracy2 = {:>8.4f}'.format(accuracy2_test))
