@@ -102,7 +102,7 @@ if __name__ == '__main__':
             eval_metric='multi_logloss'
             # early_stopping_rounds=10
         )
-        score = lgb_clf.score(X_val, y_val) ###########
+        score = lgb_clf.score(X_val, y_val)
         print('score = ', score)
         scores.append(score)
 

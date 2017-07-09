@@ -58,14 +58,14 @@ def make_submission(y_prob, ids, encoder, fname):
     print('Wrote submission to file {}.'.format(fname))
 
 
-def lgb_set_param():
+def xgb_set_param():
     '''
       XGBoost (classifier) parameters
     '''
     params = {}
     params['updater'] = 'grow_histmaker,prune'
     params['max_depth'] = 6
-    params['learning_rate'] = 0.1
+    params['learning_rate'] = 0.1   # alias of 'eta'
     params['objective'] = 'multi:softmax'
     params['n_estimators'] = 500
     params['n_jobs'] = -1
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         X_train = X[train_idx]
         y_train = y[train_idx]
 
-        params = lgb_set_param()
+        params = xgb_set_param()
         xgb_clf = xgb.XGBClassifier(**params)
 
         X_val = X[test_idx]
