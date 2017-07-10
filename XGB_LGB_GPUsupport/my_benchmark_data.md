@@ -22,7 +22,7 @@
 | kaggle otto | lightgbm      | off (CPU)    | 120.10 s | 0.825   | 0.482    |
 | kaggle otto | lightgbm      | on (GPU)   | 116.42 s | 0.824   | 0.486   |
 
-*1) Elapse time for 5-folds cross validation process
+*1) Elapse time in 5-folds cross validation process
 
 
 ## MNIST Classification Results
@@ -34,5 +34,5 @@
 | MNIST | lightgbm      | off (CPU)    | 255.18 s | 0.976  | 0.078   |
 | MNIST | lightgbm      | on (GPU)   |  87.80 s | 0.976  | 0.078  |
 
-*1) Elapse time for 5-folds cross validation process
+*1) Elapse time in 5-folds cross validation process
 
