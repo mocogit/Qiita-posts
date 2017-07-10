@@ -1,19 +1,20 @@
 #
 # -*- coding: utf-8 -*-
 #
-#   kaggle_otto_lgb_gpu.py
-#       date. 6/27/2017
+#   kaggle_otto_xgb.py
+#       date. 7/10/2017
 #
 
+import argparse
 import numpy as np
 import pandas as pd
 from time import time
-np.random.seed(201707)
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import accuracy_score, log_loss
+import xgboost as xgb
 import lightgbm as lgb
 
 def load_data(path, train=True):
@@ -58,24 +59,50 @@ def make_submission(y_prob, ids, encoder, fname):
     print('Wrote submission to file {}.'.format(fname))
 
 
-def lgb_set_param():
+def xgb_set_param(args):
+    '''
+      XGBoost (classifier) parameters
+    '''
+    params = {}
+    if args.cpu:
+        params['device'] = 'cpu'
+        params['updater'] = 'grow_histmaker,prune'
+    else:   # gpu
+        params['device'] = 'gpu'
+        params['gpu_id'] = 0
+        params['updater'] = 'grow_gpu_hist'
+
+    params['max_depth'] = 6
+    params['learning_rate'] = 0.1   # alias of 'eta'
+    params['objective'] = 'multi:softmax'
+    params['n_estimators'] = 500
+    params['n_jobs'] = -1
+
+    return params
+
+def lgb_set_param(args):
     '''
       LightGBM (classifier) parameters
     '''
     params = {}
-    params['num_leaves'] = 64
+    if args.cpu:
+        params['device'] = 'cpu'
+    else:   # gpu
+        params['device'] = 'gpu'
+        params['max_bin'] = 15
+        params['gpu_use_dp'] = False
+
+    params['num_leaves'] = 64 
     params['learning_rate'] = 0.1
     params['objective'] = 'multiclass'
     params['n_estimators'] = 500
-    params['nthread'] = 8      # orig 8
-    params['device'] = 'gpu'
-    params['max_bin'] = 15
-    params['gpu_use_dp'] = False
+    params['nthread'] = 8
 
     return params
 
 
-if __name__ == '__main__':
+def main(args):
+    # load data
     X, labels = load_data('../data/train.csv', train=True)
     X, scaler = preprocess_data(X)
     y, encoder = preprocess_labels(labels)
@@ -83,9 +110,8 @@ if __name__ == '__main__':
     X_test, ids = load_data('../data/test.csv', train=False)
     X_test, _ = preprocess_data(X_test, scaler)
 
-    # X : (61878, 93), y : 0..8
-
     # Stratified k-fold
+    np.random.seed(201707)
     start = time()
     skf = StratifiedKFold(n_splits=5)
     scores = []
@@ -94,18 +120,23 @@ if __name__ == '__main__':
         X_train = X[train_idx]
         y_train = y[train_idx]
 
-        params = lgb_set_param()
-        lgb_clf = lgb.LGBMClassifier(**params)
+        if args.xgboost:
+            params = xgb_set_param(args)
+            gb_clf = xgb.XGBClassifier(**params)
+            eval_str = 'mlogloss'
+        if args.lightgbm:
+            params = lgb_set_param(args)
+            gb_clf = lgb.LGBMClassifier(**params)
+            eval_str = 'multi_logloss'
 
         X_val = X[test_idx]
         y_val = y[test_idx]
 
-        lgb_clf.fit(X_train, y_train,
+        gb_clf.fit(X_train, y_train,
             eval_set=[(X_val, y_val)],
-            eval_metric='multi_logloss'
-            # early_stopping_rounds=10 not apply
+            eval_metric=eval_str
         )
-        score = lgb_clf.score(X_val, y_val) ###########
+        score = gb_clf.score(X_val, y_val)
         print('score = ', score)
         scores.append(score)
 
@@ -118,9 +149,42 @@ if __name__ == '__main__':
     print('score = {:>8.4f} +/- {:>8.4f}\n'.format(score_m, score_v))
     print('Elapse time = {:>8.2f} s'.format(e_time))
 
-    y_pred = lgb_clf.predict(X_val)
-    y_pred_proba = lgb_clf.predict_proba(X_val)
+    y_pred = gb_clf.predict(X_val)
+    y_pred_proba = gb_clf.predict_proba(X_val)
     accu = accuracy_score(y_val, y_pred)
     mlogloss = log_loss(y_val, y_pred_proba)
     print('accuracy = {:>8.4f}'.format(accu))
     print('multi-class logloss = {:>8.4f}'.format(mlogloss))
+
+
+if __name__ == '__main__':
+    # parse argument
+    parser = argparse.ArgumentParser()
+    group1 = parser.add_mutually_exclusive_group()
+    group1.add_argument("--cpu", action="store_true",
+                    help="no GPU support")
+    group1.add_argument("--gpu", action="store_true",
+                    help="GPU support")
+
+    group2 = parser.add_mutually_exclusive_group()
+    group2.add_argument("--xgboost", "-X", action="store_true",
+                    help="XGBoost classifier")
+    group2.add_argument("--lightgbm", "-L", action="store_true",
+                    help="LightGBM classifier")
+    args = parser.parse_args()
+
+    if args.cpu:
+        print('selected cpu option.')
+    elif args.gpu:
+        print('selected gpu option.')
+    else:
+        raise ValueError('no spec: [cpu | gpu]')
+
+    if args.xgboost:
+        print('selected XGBoost.')
+    elif args.lightgbm:
+        print('selected LightGBM.')
+    else:
+        raise ValueError('no spec: [xgboost | lightgbm]')
+
+    main(args)
