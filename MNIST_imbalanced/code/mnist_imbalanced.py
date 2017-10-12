@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 #   mnist_imbalanced.py
-#       date. 9/16/207
+#       date. 10/13/207
 #   ref. https://stackoverflow.com/questions/35155655/loss-function-for-class-imbalanced-binary-classifier-in-tensor-flow
 #
 
@@ -16,23 +16,23 @@ from tensorflow.contrib.learn.python.learn.datasets.mnist import DataSet
 
 Datasets = collections.namedtuple('Datasets', ['train', 'test'])
 
-def prep_imbalanced_dataset(dirn='../data/MNIST_data'):
+def prep_imbalanced_dataset(dirn='../data'):
     """
       prepare imbalanced dataset
         label-1: dominant label
-        label-3: fewer label (about 10% of lebal-1)
-        label-5: fewer label (about 10% of label-1)
+        label-3: fewer label (about 5% of lebal-1)
+        label-5: fewer label (about 5% of label-1)
     """
     mnist = input_data.read_data_sets(dirn, one_hot=False)
     mnist3 = Datasets(train=None, test=None)
 
     for subset in [mnist.train, mnist.test]:
         mnist_lab = subset.labels
-        idx1 = (mnist_lab == 1)
-        idx3 = (mnist_lab == 3)
-        idx5 = (mnist_lab == 5)
+        idx1 = (mnist_lab == 1)     # 'Trouser' class in Fashion-MNIST
+        idx3 = (mnist_lab == 3)     # 'Dress'   class
+        idx5 = (mnist_lab == 5)     # 'Sandal'  class
 
-        small = subset.num_examples // 200     # 550
+        small = subset.num_examples // 200     # original ...total // 10
         idx1 = [i for i in range(len(idx1)) if idx1[i]]
         idx3 = [i for i in range(len(idx3)) if idx3[i]]
         idx5 = [i for i in range(len(idx5)) if idx5[i]]
@@ -106,17 +106,20 @@ def mk_weight_dict(dataset):
       make weight dictionary
 
       args:
-        dataset: mnist dataset (DataSet class)
+        dataset: mnist dataset (train dataset)
     """
 
     n_samples = dataset.num_examples
     labels = np.argmax(dataset.labels, axis=1)
     uniq, cnt = np.unique(labels, return_counts=True)
 
-     # calculate weight array (scaled)
-    wt = [(n_samples * 1. / c) for c in cnt]
+    # calculate weight array
+    wt = [(1. / c) for c in cnt]
     # scaling
-    wt_scaled = [w / sum(wt) for w in wt]
+    wt_tot = [wt[list(uniq).index(lab)] for lab in labels]
+    wscale = 1. * n_samples / sum(wt_tot)
+    wt_scaled = [w * wscale for w in wt]
+
     weight_dict = dict([(u, w) for u, w in zip(uniq, wt_scaled)])
 
     return weight_dict
@@ -136,42 +139,24 @@ def get_weights_in_batch(batch_y, weight_dict):
 if __name__ == '__main__':
     # Load Data
     np.random.seed(seed=201709)
-    mnist3 = prep_imbalanced_dataset()
+    mnist3 = prep_imbalanced_dataset('../data')
     wt_dict = mk_weight_dict(mnist3.train)
-
-    # check point file name
-    ckpt_file = '/tmp/mnist_cnn.ckpt'
 
     # Variables
     x = tf.placeholder(tf.float32, [None, 784])
     y_ = tf.placeholder(tf.float32, [None, 10])
     wt = tf.placeholder(tf.float32, [None])     # class weights
     keep_prob = tf.placeholder(tf.float32)  
+
+    # main graph
     loss, accuracy, y_pred = inference(x, y_, keep_prob, wt)
-
-    # Train
     train_step = tf.train.AdamOptimizer(
-                    learning_rate=0.01).minimize(loss)
-    vars_to_train = tf.trainable_variables()
-    ckpt_index = ckpt_file + '.index'
+                    learning_rate=5.e-3).minimize(loss)
 
-    if os.path.exists(ckpt_index) == False:
-        restore_call = False
-        init = tf.global_variables_initializer()
-    else:
-        restore_call = True
-        vars_all = tf.global_variables()
-        vars_to_init = list(set(vars_all) - set(vars_to_train))
-        init = tf.variables_initializer(vars_to_init)
-
-    saver = tf.train.Saver(vars_to_train)
+    init = tf.global_variables_initializer()
 
     with tf.Session() as sess:
         sess.run(init)
-        if restore_call:
-            # Restore variables from disk.
-            saver.restore(sess, ckpt_file) 
-            print('model restored.')
 
         print('Training...')
         for i in range(2001):
@@ -181,7 +166,7 @@ if __name__ == '__main__':
                             keep_prob: 0.5, wt: batch_wt})
             if i % 200 == 0:
                 train_accuracy = accuracy.eval(
-                    {x: batch_xs, y_: batch_ys, keep_prob: 1.0, wt: batch_wt})
+                    {x: batch_xs, y_: batch_ys, keep_prob: 1.0})
                 print('  step, accurary = %6d: %8.4f' % (i, train_accuracy))
         # check dataflow status
         print('epoch comp = %4d times' % mnist3.train.epochs_completed)
@@ -194,13 +179,14 @@ if __name__ == '__main__':
         for i in range(n_loop):
             batch_xte, batch_yte = mnist3.test.next_batch(100)
             batch_wt = get_weights_in_batch(batch_yte, wt_dict)
-            test_fd = {x: batch_xte, y_: batch_yte, keep_prob: 1.0, wt: batch_wt}
+            test_fd = {x: batch_xte, y_: batch_yte, keep_prob: 1.0}
             y_pred_np.extend(sess.run(y_pred, feed_dict=test_fd))
             y_true_np.extend(batch_yte)
 
     # confusion matrix
     y_true_np = np.asarray(np.argmax(y_true_np, axis=1))
     y_pred_np = np.asarray(np.argmax(y_pred_np, axis=1))
-    print('accuracy = ', accuracy_score(y_true_np, y_pred_np), '\n')
+    print('accuracy = {:>8.4f}\n'.format(
+            accuracy_score(y_true_np, y_pred_np)))
     print('confusion matrix = \n', 
           confusion_matrix(y_true_np, y_pred_np))
